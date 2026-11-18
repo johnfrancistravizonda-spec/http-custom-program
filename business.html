@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>John's Inventory Management</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #130d20;
+  color: white;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+}
+
+header {
+  background: #25183b;
+  padding: 25px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+header h1 {
+  color: #b99aff;
+}
+
+header p {
+  color: #c9bddb;
+  margin-top: 8px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #25183b;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.card h3 {
+  color: #b99aff;
+  margin-bottom: 12px;
+}
+
+.card h2 {
+  font-size: 25px;
+}
+
+.panel {
+  background: #25183b;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin: 7px 0;
+  border: 1px solid #604b80;
+  border-radius: 7px;
+  background: #171024;
+  color: white;
+}
+
+button {
+  padding: 11px 15px;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: bold;
+  margin: 5px 3px;
+}
+
+.add-btn {
+  background: #9665e8;
+  color: white;
+}
+
+.edit-btn {
+  background: #347bc4;
+  color: white;
+}
+
+.delete-btn {
+  background: #d64e69;
+  color: white;
+}
+
+.export-btn {
+  background: #269b70;
+  color: white;
+}
+
+button:hover {
+  opacity: .8;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  min-width: 650px;
+}
+
+th, td {
+  padding: 13px;
+  border-bottom: 1px solid #49365f;
+  text-align: left;
+}
+
+th {
+  color: #c5a9ff;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.low {
+  color: #ffb45d;
+  font-weight: bold;
+}
+
+.good {
+  color: #65e0a8;
+  font-weight: bold;
+}
+
+@media(max-width: 650px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header>
+  <h1>John's Inventory Management</h1>
+  <p>Business Inventory Control System</p>
+</header>
+
+<section class="stats">
+  <div class="card">
+    <h3>Total Products</h3>
+    <h2 id="totalProducts">0</h2>
+  </div>
+
+  <div class="card">
+    <h3>Total Stock</h3>
+    <h2 id="totalStock">0</h2>
+  </div>
+
+  <div class="card">
+    <h3>Inventory Value</h3>
+    <h2 id="totalValue">₱0.00</h2>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Add / Edit Product</h2>
+
+  <input type="hidden" id="editIndex">
+
+  <input id="productName"
+    type="text" placeholder="Product Name">
+
+  <input id="productCategory"
+    type="text" placeholder="Category">
+
+  <input id="productPrice"
+    type="number" min="0" step="0.01"
+    placeholder="Unit Price (₱)">
+
+  <input id="productQuantity"
+    type="number" min="0" step="1"
+    placeholder="Quantity">
+
+  <input id="productLow"
+    type="number" min="0" step="1"
+    placeholder="Low Stock Alert Level">
+
+  <button class="add-btn" onclick="saveProduct()">
+    Save Product
+  </button>
+</section>
+
+<section class="panel">
+  <h2>Product Inventory</h2>
+
+  <input id="search"
+    type="text"
+    placeholder="Search product..."
+    oninput="displayProducts()">
+
+  <select id="categoryFilter"
+    onchange="displayProducts()">
+    <option value="">All Categories</option>
+  </select>
+
+  <button class="export-btn" onclick="exportCSV()">
+    Export CSV
+  </button>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Total Value</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="inventoryList"></tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+let products = [];
+
+try {
+  products = JSON.parse(
+    localStorage.getItem("johnInventory")
+  ) || [];
+} catch {
+  products = [];
+}
+
+function saveData() {
+  localStorage.setItem(
+    "johnInventory",
+    JSON.stringify(products)
+  );
+}
+
+function money(amount) {
+  return "₱" + amount.toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function saveProduct() {
+  const name = document.getElementById("productName").value.trim();
+  const category = document.getElementById("productCategory").value.trim();
+  const price = Number(document.getElementById("productPrice").value);
+  const quantity = Number(document.getElementById("productQuantity").value);
+  const low = Number(document.getElementById("productLow").value);
+  const editIndex = document.getElementById("editIndex").value;
+
+  if (
+    !name || !category ||
+    document.getElementById("productPrice").value === "" ||
+    document.getElementById("productQuantity").value === "" ||
+    document.getElementById("productLow").value === "" ||
+    !Number.isFinite(price) || price < 0 ||
+    !Number.isInteger(quantity) || quantity < 0 ||
+    !Number.isInteger(low) || low < 0
+  ) {
+    alert("Please enter valid product information.");
+    return;
+  }
+
+  const product
